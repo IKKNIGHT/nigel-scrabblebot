@@ -260,6 +260,12 @@ export async function makeAgent(spec: string): Promise<Agent> {
       const { proxyAgent } = await import("../../train/agents.js");
       return proxyAgent(spec, { bron: "Bron", lucent: "LUCENT", maverick: "maverick-bot" }[name]);
     }
+    // live@<BotName>: proxy of any live bot with a profile in data/profiles.json.
+    case "live": {
+      if (!arg) throw new Error("live@<BotName> needs a bot name");
+      const { proxyAgent } = await import("../../train/agents.js");
+      return proxyAgent(spec, arg);
+    }
     default:
       throw new Error(`unknown opponent '${spec}'`);
   }

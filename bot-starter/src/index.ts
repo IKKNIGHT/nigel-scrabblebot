@@ -198,8 +198,16 @@ function runningMatches(conn: DbConnection): bigint[] {
   return out;
 }
 
+// Rack updates for a play arrive one tile at a time; re-planning on a half
+// updated rack resends tiles that are already spent. Wait this long after a
+// play, then plan once more.
+const SETTLE_MS = 350;
+const lastPlayAt = new Map<bigint, number>();
+
 function tryPlayWords(conn: DbConnection) {
   for (const matchId of runningMatches(conn)) {
+    const since = Date.now() - (lastPlayAt.get(matchId) ?? 0);
+    if (since < SETTLE_MS) continue;
     const rec = records(conn, matchId);
     if (!rec) continue;
     const ctx = buildCtx(rec);
@@ -209,6 +217,10 @@ function tryPlayWords(conn: DbConnection) {
     if (wordsSentFor.get(matchId) === sig) continue;
     wordsSentFor.set(matchId, sig);
     const words = strategy.chooseWords(ctx);
+    if (words.length > 0) {
+      lastPlayAt.set(matchId, Date.now());
+      setTimeout(() => tryPlayWords(conn), SETTLE_MS + 10);
+    }
     for (const word of words) {
       console.log(`[${BOT_NAME}] match ${matchId} r${ctx.round}: playing '${word}'`);
       log(matchId, { event: "word", round: ctx.round, word });

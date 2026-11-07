@@ -18,3 +18,4 @@ bot-starter/data/*.json
 !bot-starter/data/profiles.json
 bot-starter/live.out
 bot-starter/evolve-run.out
+bot-starter/data/old/

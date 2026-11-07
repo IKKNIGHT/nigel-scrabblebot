@@ -35,7 +35,10 @@ function main() {
   }
   for (const as of byMatch.values()) as.sort((a, b) => Number(a.auction_id) - Number(b.auction_id));
 
-  const out: Record<string, Profile> = {};
+  // Merge into the existing profiles, so bots missing from this pull keep theirs.
+  const out: Record<string, Profile> = fs.existsSync("data/profiles.json")
+    ? JSON.parse(fs.readFileSync("data/profiles.json", "utf8"))
+    : {};
   for (const name of names) {
     const id = bots.get(name);
     if (!id) {

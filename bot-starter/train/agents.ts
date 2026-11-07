@@ -44,11 +44,16 @@ export const PROXY_SCALE: Record<string, number> = {
   ...(process.env.PROXY_SCALES ? JSON.parse(process.env.PROXY_SCALES) : {}),
 };
 
+const PROXY_BRAIN: Partial<Params> = process.env.PROXY_BRAIN
+  ? JSON.parse(fs.readFileSync(path.resolve(process.env.PROXY_BRAIN), "utf8"))
+  : {};
+
 export function proxyAgent(label: string, profileName: string, scale = PROXY_SCALE[profileName] ?? 1): Agent {
   const prof = PROFILES[profileName];
   if (!prof) throw new Error(`no profile for ${profileName}; run train/fit_profiles.ts`);
-  // Proxies judge fit and play words like a default Nigel.
-  const brain = createStrategy(loadDict(), {}, PRICES, TOPS);
+  // Proxies judge fit and play words like a default Nigel, or like Nigel
+  // with the params in PROXY_BRAIN (a JSON file).
+  const brain = createStrategy(loadDict(), PROXY_BRAIN, PRICES, TOPS);
   let rng = new Rng(1);
   // Box-Muller.
   const normal = () => Math.sqrt(-2 * Math.log(1 - rng.next())) * Math.cos(2 * Math.PI * rng.next());
