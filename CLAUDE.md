@@ -58,7 +58,7 @@ npx tsx train/fit_profiles.ts              # profiles.json (proxies bron / lucen
 | Live client (`src/index.ts`): quick bid then revise, JSONL logs, auto-reconnect, tournament flag | **Written, never run live.** There is no `.token-nigel` file yet |
 | Sim engine, opponent pool, runner, A/B compare, evolve (`sim/`) | **Done** |
 | Top-bot proxies fitted from public data (`train/`) | **Done** (approximate) |
-| Param tuning | Evolve gen 1 was **accepted** (place Δ −0.46 ± 0.18, score +7.8) and saved in `results/evolve-best.json`. **It has not been copied into `params.json` yet.** The run was still going (gen 2/10) on the old machine |
+| Param tuning | Evolve gens 1–2 (seed 4242) **adopted into `params.json`** on Nov 7: place Δ −0.147 ± 0.107 vs bron/lucent/maverick/brutus/valor/cheapo, see `results/2026-11-07-adopt-evolve-gen2.md`. The afterword holdout is not yet checked |
 | Git | **Public repo:** https://github.com/IKKNIGHT/nigel-scrabblebot (branch `main`, `upstream` = clockworklabs/scrabblebot). Commit and push as you go |
 | README "Strategy" section for judges | **Missing.** `bot-starter/README.md` covers run, sim and layout only |
 
