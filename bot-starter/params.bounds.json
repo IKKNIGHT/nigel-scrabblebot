@@ -95,5 +95,20 @@
   "cashRevise": [
     0,
     40
+  ],
+  "allIn": [
+    0,
+    1,
+    "int"
+  ],
+  "flushAt": [
+    0,
+    4,
+    "int"
+  ],
+  "sevenPick": [
+    0,
+    1,
+    "int"
   ]
 }

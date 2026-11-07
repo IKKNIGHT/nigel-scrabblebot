@@ -219,21 +219,73 @@ function tryPlayWords(conn: DbConnection) {
   }
 }
 
+// Subscribe to one match's rows, once per match we're seated in.
+const matchSubs = new Set<bigint>();
+function watchMatch(conn: DbConnection, matchId: bigint) {
+  if (matchSubs.has(matchId)) return;
+  matchSubs.add(matchId);
+  conn
+    .subscriptionBuilder()
+    .onApplied(() => {
+      for (const a of conn.db.auction.iter()) {
+        if (a.matchId === matchId && a.status.tag === "Open") tryBid(conn, a.id, a.matchId);
+      }
+      tryPlayWords(conn);
+    })
+    .subscribe([
+      `SELECT * FROM match_state WHERE id = ${matchId}`,
+      `SELECT * FROM match_participant WHERE match_id = ${matchId}`,
+      `SELECT * FROM auction WHERE match_id = ${matchId}`,
+      `SELECT * FROM auction_result WHERE match_id = ${matchId}`,
+      `SELECT * FROM word_play WHERE match_id = ${matchId}`,
+    ]);
+}
+
+// Set once the seats subscription is applied, so its initial rows (past
+// matches) don't each open a match subscription.
+let seatsReady = false;
+
+// Our seats in every match. A bot plays one match at a time, so only the
+// latest can still be running: watch that one, then the lobby.
+function watchOwnSeats(conn: DbConnection) {
+  conn
+    .subscriptionBuilder()
+    .onApplied(() => {
+      seatsReady = true;
+      let latest: bigint | undefined;
+      for (const p of conn.db.matchParticipant.iter()) {
+        if (p.botId === myBotId && (latest === undefined || p.matchId > latest)) latest = p.matchId;
+      }
+      if (latest !== undefined) watchMatch(conn, latest);
+      bootstrapActivity(conn);
+    })
+    .subscribe(`SELECT * FROM match_participant WHERE bot_id = ${myBotId}`);
+}
+
+// Seated in a watched match that is running, or whose rows haven't arrived yet.
+function busy(conn: DbConnection): boolean {
+  for (const p of conn.db.matchParticipant.iter()) {
+    if (p.botId !== myBotId || !matchSubs.has(p.matchId)) continue;
+    const m = conn.db.matchState.id.find(p.matchId);
+    if (!m || m.status.tag === "Running") return true;
+  }
+  return false;
+}
+
+// joinLobby is a no-op on the server when we're already in the open lobby,
+// so just call it whenever we're not in a match.
+let lobbyLogged = false;
 function joinLobby(conn: DbConnection) {
   if (myBotId === null) return;
-  if (runningMatches(conn).length > 0) return;
-  const openLobby = Array.from(conn.db.lobby.iter()).find((l) => l.status.tag === "Open");
-  const alreadyIn =
-    openLobby !== undefined &&
-    Array.from(conn.db.lobbyMember.iter()).some(
-      (lm) => lm.lobbyId === openLobby.id && lm.botId === myBotId,
-    );
-  if (alreadyIn) return;
-  console.log(`[${BOT_NAME}] joining lobby`);
+  if (busy(conn)) return;
+  if (!lobbyLogged) console.log(`[${BOT_NAME}] joining lobby`);
+  lobbyLogged = true;
   conn.reducers.joinLobby({}).catch((err: unknown) =>
     console.warn(`[${BOT_NAME}] joining the lobby failed: ${err instanceof Error ? err.message : err}`),
   );
 }
+
+let lobbyWatchdog: ReturnType<typeof setInterval> | undefined;
 
 function bootstrapActivity(conn: DbConnection) {
   if (TOURNAMENT_ID) {
@@ -245,6 +297,11 @@ function bootstrapActivity(conn: DbConnection) {
       );
   }
   joinLobby(conn);
+  // A join can be lost without an error, and a bot outside both a match and
+  // the open lobby never plays again, so keep checking. In a tournament the
+  // server refuses joins until we're knocked out, so check less often.
+  clearInterval(lobbyWatchdog);
+  lobbyWatchdog = setInterval(() => joinLobby(conn), TOURNAMENT_ID ? 30000 : 5000);
   for (const a of conn.db.auction.iter()) {
     if (a.status.tag === "Open") tryBid(conn, a.id, a.matchId);
   }
@@ -257,6 +314,8 @@ function onConnect(conn: DbConnection, identity: Identity, token: string) {
   myIdentity = identity;
   saveToken(token);
   reconnectDelay = 1000;
+  matchSubs.clear(); // a new connection starts with an empty cache
+  seatsReady = false;
   console.log(`[${BOT_NAME}] connected as ${identity.toHexString()}`);
 
   conn
@@ -277,7 +336,7 @@ function onConnect(conn: DbConnection, identity: Identity, token: string) {
               console.error(`[${BOT_NAME}] couldn't claim credential. Bad / expired nonce?`);
               process.exit(1);
             }
-            bootstrapActivity(conn);
+            watchOwnSeats(conn);
           }, 1000);
           return;
         }
@@ -288,9 +347,12 @@ function onConnect(conn: DbConnection, identity: Identity, token: string) {
       }
       const bot = conn.db.bot.id.find(myBotId);
       console.log(`[${BOT_NAME}] acting as bot '${bot?.name ?? "?"}' (id ${myBotId})`);
-      bootstrapActivity(conn);
+      watchOwnSeats(conn);
     })
-    .subscribeToAllTables();
+    // Not subscribeToAllTables: that streams every match on the server
+    // (millions of rows) and the client falls minutes behind. Small tables
+    // here; our matches once we know our bot id.
+    .subscribe(["SELECT * FROM bot_credential", "SELECT * FROM bot", "SELECT * FROM my_rack"]);
 
   conn.db.auction.onInsert((_ctx: EventContext, a) => {
     if (a.status.tag !== "Open") return;
@@ -307,6 +369,13 @@ function onConnect(conn: DbConnection, identity: Identity, token: string) {
     if (m?.status.tag === "Running" && m.currentAuctionId !== undefined) {
       tryBid(conn, m.currentAuctionId, neu.matchId);
     }
+  });
+  // Seated in a new match (lobby resolved, or a tournament round).
+  conn.db.matchParticipant.onInsert((_ctx, p) => {
+    if (!seatsReady || myBotId === null || p.botId !== myBotId || matchSubs.has(p.matchId)) return;
+    console.log(`[${BOT_NAME}] seated in match ${p.matchId}`);
+    lobbyLogged = false;
+    watchMatch(conn, p.matchId);
   });
   conn.db.botCredential.onInsert(() => {
     if (myBotId === null) myBotId = resolveMyBotId(conn);
@@ -370,6 +439,7 @@ function connect() {
     })
     .onDisconnect(() => {
       console.log("disconnected");
+      clearInterval(lobbyWatchdog);
       scheduleReconnect();
     })
     .build();

@@ -28,6 +28,9 @@ export interface Params {
   maxMissing: number; // tiles a target may still be missing
   minLen: number; // shortest target word
   w2: number; // weight of the second target from the leftover tiles
+  pBase: number; // > 0: chance per missing copy = pBase·u/(u + a), replacing the Poisson
+  aHalf: number; // a = aHalf × (auctionsLeft/unseen)^-horizonW
+  horizonW: number;
   // bidding
   alpha: number; // × rack-value gain
   beta: number; // × face value
@@ -60,6 +63,9 @@ export const DEFAULT_PARAMS: Params = {
   maxMissing: 3,
   minLen: 4,
   w2: 0.3,
+  pBase: 0,
+  aHalf: 0.374,
+  horizonW: 1.172,
   alpha: 1.0,
   beta: 1.2,
   idleBeta: 0.6,
@@ -139,10 +145,14 @@ export function createStrategy(
     const phase = phaseOf(ctx.round, ctx.totalRounds);
     const pGet = new Float64Array(78);
     const cost = new Float64Array(26);
+    const a = p.aHalf * Math.pow(Math.max(frac, 1e-3), -p.horizonW);
     for (let i = 0; i < 26; i++) {
       const u = ctx.unseen[i]!;
       const m = u * frac * p.pWin;
-      for (let k = 1; k <= 3; k++) pGet[i * 3 + k - 1] = u >= k ? poissonAtLeast(m, k) : 0;
+      const q = p.pBase * (u / (u + a));
+      for (let k = 1; k <= 3; k++) {
+        pGet[i * 3 + k - 1] = u < k ? 0 : p.pBase > 0 ? Math.pow(q, k) : poissonAtLeast(m, k);
+      }
       cost[i] = p.costW * paidOf(i, phase);
     }
     optsKey = key;
