@@ -1,13 +1,19 @@
 {
-  "name": "scrabblebot-bot-starter",
+  "name": "nigel-bot",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "generate": "npm install --prefix ../spacetimedb && spacetime generate --lang typescript --out-dir src/module_bindings --module-path ../spacetimedb",
     "start": "tsx src/index.ts",
-    "test": "node --import tsx --test src/strategy.test.ts",
-    "build": "tsc"
+    "test": "node --import tsx --test src/strategy.test.ts sim/sim.test.ts",
+    "build": "tsc",
+    "sim": "tsx sim/run.ts",
+    "typecheck": "tsc --noEmit",
+    "bindings": "node -e \"require('fs').cpSync('../src/module_bindings','src/module_bindings',{recursive:true})\"",
+    "compare": "tsx sim/compare.ts",
+    "evolve": "tsx sim/evolve.ts",
+    "profile": "tsx sim/profile.ts"
   },
   "dependencies": {
     "spacetimedb": "^2.12.0",

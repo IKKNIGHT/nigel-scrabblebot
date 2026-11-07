@@ -7,6 +7,12 @@ target/
 .token-*
 # bot-starter bindings still ignored (regenerated per checkout). Web app's
 # bindings are tracked so the production build doesn't need spacetime CLI.
-bot-starter/src/module_bindings/
+# bot-starter bindings are copied from src/module_bindings (npm run bindings).
 .vercel
 .env*
+bot-starter/logs/
+bot-starter/data/*.json
+!bot-starter/data/price_table.json
+
+!bot-starter/data/top_table.json
+!bot-starter/data/profiles.json
