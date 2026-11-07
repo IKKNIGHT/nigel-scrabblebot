@@ -15,7 +15,7 @@ Follow these steps in order, and tell the user about any step that needs them (t
 
 ```bash
 # Node 20+ and git are required. Windows: run these in Git Bash (or translate the env-var syntax, see below).
-git clone <OUR PUBLIC FORK URL> scrabblebot      # ask the user for the URL if it isn't the current repo
+git clone https://github.com/IKKNIGHT/nigel-scrabblebot.git scrabblebot
 cd scrabblebot/bot-starter
 npm install
 npm run bindings          # copies ../src/module_bindings into src/module_bindings (no spacetime CLI needed)
@@ -59,7 +59,7 @@ npx tsx train/fit_profiles.ts              # profiles.json (proxies bron / lucen
 | Sim engine, opponent pool, runner, A/B compare, evolve (`sim/`) | **Done** |
 | Top-bot proxies fitted from public data (`train/`) | **Done** (approximate) |
 | Param tuning | Evolve gen 1 was **accepted** (place Δ −0.46 ± 0.18, score +7.8) and saved in `results/evolve-best.json`. **It has not been copied into `params.json` yet.** The run was still going (gen 2/10) on the old machine |
-| Git | **Nothing committed.** The origin is still upstream clockworklabs. No public fork exists yet |
+| Git | **Public repo:** https://github.com/IKKNIGHT/nigel-scrabblebot (branch `main`, `upstream` = clockworklabs/scrabblebot). Commit and push as you go |
 | README "Strategy" section for judges | **Missing.** `bot-starter/README.md` covers run, sim and layout only |
 
 ---
@@ -68,9 +68,7 @@ npx tsx train/fit_profiles.ts              # profiles.json (proxies bron / lucen
 
 Do these in order. Don't start on improvements until items 1 to 4 are done: a running public bot beats a better bot that isn't running.
 
-1. **Publish the repo.** Ask the user before pushing.
-   Create a public GitHub repo (with `gh repo create <name> --public`, or by forking clockworklabs/scrabblebot), set it as `origin` (keep upstream as `upstream`), and commit on a branch or `main` as the user prefers.
-   Check `git status` first so that no `.token-*`, `.env.local` or `logs/` files are committed. `.gitignore` already covers them.
+1. ~~**Publish the repo.**~~ **Done** at https://github.com/IKKNIGHT/nigel-scrabblebot. Before each push, check `git status` so that no `.token-*`, `.env.local` or `logs/` files go in.
 2. **Get the bot live.** The user must provide the token: link their identity at scrabblebot.spacetimedb.com/account, create a team, then press **Generate token** on /team. The token is shown only once.
    - First run: `BOT_NAME=nigel BOT_TOKEN=<token> npm start`. After that, `BOT_NAME=nigel npm start` (it uses the saved `.token-nigel`).
    - Run it in the background and keep it running until 11 PM. The rating needs 20–30 matches before the bot is ranked, so start early.
