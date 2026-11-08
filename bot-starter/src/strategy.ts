@@ -46,6 +46,7 @@ export interface Params {
   qNeedU: number; // 1 = only a U spares the Q its discount (an I rarely makes a Q word)
   endSpend: number; // > 0: in the last endSpendN auctions, bid ≥ endSpend × balance on letters that help
   endSpendN: number;
+  tableK: number; // > 0: the tile floor also applies when behind tableK × this table's tile leader
   endN: number; // in the last endN auctions, value by exact best split
   allIn: number; // 1 = bid everything on the last playable tile if it scores
   denyW: number; // bid ≥ denyW × what the letter adds to a rival's best word
@@ -90,6 +91,7 @@ export const DEFAULT_PARAMS: Params = {
   qNeedU: 0,
   endSpend: 0,
   endSpendN: 10,
+  tableK: 0,
   endN: 3,
   allIn: 1,
   denyW: 0,
@@ -288,7 +290,15 @@ function createBase(
     if (p.floorMult > 0) {
       let won = 0;
       for (const r of ctx.results) if (r.winner === ctx.me) won++;
-      const behind = won < (p.letterTarget * ctx.round) / ctx.totalRounds - p.slack;
+      let behind = won < (p.letterTarget * ctx.round) / ctx.totalRounds - p.slack;
+      // Also behind when trailing this table's tile leader: strong tables
+      // outbid the fixed pace, and losing that race loses the match.
+      if (!behind && p.tableK > 0) {
+        const wins = new Map<string, number>();
+        for (const r of ctx.results) if (r.winner && r.winner !== ctx.me) wins.set(r.winner, (wins.get(r.winner) ?? 0) + 1);
+        const lead = Math.max(0, ...wins.values());
+        behind = won < p.tableK * lead - p.slack;
+      }
       if (behind && (delta > 0 || rackSize(ctx.rack) < 8)) {
         bid = Math.max(bid, p.floorMult * topOf(c, phase) + 1);
       }
