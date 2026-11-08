@@ -43,6 +43,7 @@ export interface Params {
   letterTarget: number; // tiles we want to win per match
   slack: number; // tiles behind pace before the floor kicks in
   qW: number; // multiplier on a Q with no U or I
+  qNeedU: number; // 1 = only a U spares the Q its discount (an I rarely makes a Q word)
   endN: number; // in the last endN auctions, value by exact best split
   allIn: number; // 1 = bid everything on the last playable tile if it scores
   denyW: number; // bid ≥ denyW × what the letter adds to a rival's best word
@@ -84,6 +85,7 @@ export const DEFAULT_PARAMS: Params = {
   letterTarget: 24,
   slack: 2,
   qW: 0.3,
+  qNeedU: 0,
   endN: 3,
   allIn: 1,
   denyW: 0,
@@ -301,7 +303,8 @@ function createBase(
       if (ctx.balance >= 2 * push) bid = Math.max(bid, push);
     }
     // Almost no words take a Q without a U or an I.
-    if (ctx.letter === "Q" && ctx.rack[idx("U")] === 0 && ctx.rack[idx("I")] === 0) bid *= p.qW;
+    const qOk = ctx.rack[idx("U")]! > 0 || (p.qNeedU < 1 && ctx.rack[idx("I")]! > 0);
+    if (ctx.letter === "Q" && !qOk) bid *= p.qW;
     if (ctx.auctionType === "FirstPrice") bid *= p.shade;
     return bid;
   }
