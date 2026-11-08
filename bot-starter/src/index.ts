@@ -254,8 +254,10 @@ function watchMatch(conn: DbConnection, matchId: bigint) {
 }
 
 // Set once the seats subscription is applied, so its initial rows (past
-// matches) don't each open a match subscription.
+// matches) don't each open a match subscription. Their insert callbacks can
+// fire after onApplied, so new seats must also be later than seatsBase.
 let seatsReady = false;
+let seatsBase = -1n;
 
 // Our seats in every match. A bot plays one match at a time, so only the
 // latest can still be running: watch that one, then the lobby.
@@ -268,7 +270,10 @@ function watchOwnSeats(conn: DbConnection) {
       for (const p of conn.db.matchParticipant.iter()) {
         if (p.botId === myBotId && (latest === undefined || p.matchId > latest)) latest = p.matchId;
       }
-      if (latest !== undefined) watchMatch(conn, latest);
+      if (latest !== undefined) {
+        seatsBase = latest;
+        watchMatch(conn, latest);
+      }
       bootstrapActivity(conn);
     })
     .subscribe(`SELECT * FROM match_participant WHERE bot_id = ${myBotId}`);
@@ -385,6 +390,7 @@ function onConnect(conn: DbConnection, identity: Identity, token: string) {
   // Seated in a new match (lobby resolved, or a tournament round).
   conn.db.matchParticipant.onInsert((_ctx, p) => {
     if (!seatsReady || myBotId === null || p.botId !== myBotId || matchSubs.has(p.matchId)) return;
+    if (p.matchId <= seatsBase) return;
     console.log(`[${BOT_NAME}] seated in match ${p.matchId}`);
     lobbyLogged = false;
     watchMatch(conn, p.matchId);
