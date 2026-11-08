@@ -55,6 +55,13 @@ export interface Params {
   cashRevise: number; // cash a word to afford a letter worth at least this much more than our balance (0 = off)
   holdMax: number; // dump a word when the rack grows past this
   sevenPick: number; // 1 = choose 7+ words by reward plus leftover rack value
+  sevenBias: number; // > 0: hold a 7+ word if V(rack) > sevenBias × reward + V(rest) (0 = always play)
+  pushW: number; // > 0: on useless letters bid up to pushW × the typical top bid, to make overbidders pay
+  walletW: number; // > 0: bid richest rival's balance + 1 when walletW × value gain covers it (second price only)
+  placeN: number; // the last placeN auctions count as late for trailBoost / leadCash
+  trailBoost: number; // late and trailing the leader by 10+: × (1 + trailBoost) on letters worth 4+
+  leadCash: number; // late and leading by 10+: holdKappa and minPlayReward × (1 − leadCash)
+  denyLeader: number; // 1 = denial looks only at the top-scoring rival
 }
 
 export const DEFAULT_PARAMS: Params = {
@@ -88,6 +95,13 @@ export const DEFAULT_PARAMS: Params = {
   cashRevise: 10,
   holdMax: 14,
   sevenPick: 0,
+  sevenBias: 0,
+  pushW: 0,
+  walletW: 0,
+  placeN: 25,
+  trailBoost: 0,
+  leadCash: 0,
+  denyLeader: 0,
 };
 
 // Per-letter predicted price for each fifth of the match.
@@ -188,7 +202,9 @@ export function createStrategy(
   // the tiles we've seen it win and not play.
   function denyGain(ctx: BidCtx, c: number): number {
     let best = 0;
+    const lead = Math.max(...ctx.opponents.map((o) => o.score));
     for (const o of ctx.opponents) {
+      if (p.denyLeader >= 1 && o.score < lead) continue;
       if (rackSize(o.known) < 4) continue;
       const k0 = bestWord(dict, o.known);
       const r2 = new Uint8Array(o.known);
@@ -213,7 +229,16 @@ export function createStrategy(
       const dump = bestSplit(dict, withL, 20).score - bestSplit(dict, ctx.rack, 20).score;
       delta = ctx.auctionsLeft === 1 ? Math.max(0, dump) : Math.max(delta, dump);
     }
+    // Trailing late: only a big word can change our place, so lean on the
+    // letters that make one.
+    if (p.trailBoost > 0 && VALUE[c]! >= 4 && standing(ctx) <= -10) delta *= 1 + p.trailBoost;
     return delta;
+  }
+
+  // Late in the match: our score minus the best rival's (0 when not late).
+  function standing(ctx: WordCtx): number {
+    if (ctx.auctionsLeft > p.placeN || ctx.opponents.length === 0) return 0;
+    return ctx.score - Math.max(...ctx.opponents.map((o) => o.score));
   }
 
   function rawBid(ctx: BidCtx, delta: number): number {
@@ -236,6 +261,18 @@ export function createStrategy(
       }
     }
     if (p.denyW > 0) bid = Math.max(bid, p.denyW * denyGain(ctx, c));
+    // Wallets: under second price we pay at most the richest rival's
+    // balance, so outbidding them all is safe when the letter is worth it.
+    if (p.walletW > 0 && delta > 0 && ctx.auctionType !== "FirstPrice" && ctx.opponents.length > 0) {
+      const rich = Math.max(...ctx.opponents.map((o) => o.balance));
+      if (rich + 1 <= ctx.balance && p.walletW * delta >= rich) bid = Math.max(bid, rich + 1);
+    }
+    // Price push: a letter we don't need still costs its winner our bid
+    // (second price). Only when we could live with winning it.
+    if (p.pushW > 0 && delta <= 0 && ctx.auctionsLeft > 1) {
+      const push = p.pushW * topOf(c, phase);
+      if (ctx.balance >= 2 * push) bid = Math.max(bid, push);
+    }
     // Almost no words take a Q without a U or an I.
     if (ctx.letter === "Q" && ctx.rack[idx("U")] === 0 && ctx.rack[idx("I")] === 0) bid *= p.qW;
     if (ctx.auctionType === "FirstPrice") bid *= p.shade;
@@ -284,6 +321,12 @@ export function createStrategy(
           }
         }
       }
+      // A 7+ word is a strong default, not automatic: keep building when the
+      // rack (8+ letter targets included) is clearly worth more. Never late.
+      if (p.sevenBias > 0 && ctx.auctionsLeft > 3) {
+        const rest = rackValue(subtract(dict, rack, pick), o);
+        if (rackValue(rack, o) > p.sevenBias * dict.reward[pick]! + rest) break;
+      }
       play(pick);
     }
 
@@ -301,9 +344,11 @@ export function createStrategy(
       }
       const tooBig = rackSize(rack) > p.holdMax;
       if (!needCash && !tooBig) {
-        if (rw < p.minPlayReward) break;
+        // Leading late: bank safe words rather than risk the lead.
+        const ease = p.leadCash > 0 && standing(ctx) >= 10 ? 1 - p.leadCash : 1;
+        if (rw < p.minPlayReward * ease) break;
         const rest = subtract(dict, rack, k);
-        if (rw + rackValue(rest, o) < p.holdKappa * rackValue(rack, o)) break;
+        if (rw + rackValue(rest, o) < p.holdKappa * ease * rackValue(rack, o)) break;
       }
       play(k);
     }
