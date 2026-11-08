@@ -130,11 +130,38 @@ function poissonAtLeast(m: number, k: number): number {
   return Math.max(0, 1 - cdf);
 }
 
+// Params with optional per-table overrides. Keys: "<seats>" (e.g. "2" for
+// the 2-bot final), "fp" (first-price) and "fp<seats>"; the most specific
+// key that matches the table wins.
+export type ParamsWithModes = Partial<Params> & { modes?: Record<string, Partial<Params>> };
+
 export function createStrategy(
   dict: Dict = loadDict(),
-  params: Partial<Params> = {},
+  params: ParamsWithModes = {},
   prices: PriceTable | null = null,
   tops: PriceTable | null = null,
+): Strategy {
+  const { modes, ...base } = params;
+  const def = createBase(dict, base, prices, tops);
+  if (!modes || Object.keys(modes).length === 0) return def;
+  const by = new Map(Object.entries(modes).map(([k, o]) => [k, createBase(dict, { ...base, ...o }, prices, tops)]));
+  const pick = (ctx: WordCtx): Strategy => {
+    const n = ctx.opponents.length + 1;
+    const fp = ctx.auctionType === "FirstPrice";
+    return (fp ? by.get(`fp${n}`) ?? by.get("fp") : undefined) ?? by.get(String(n)) ?? def;
+  };
+  return {
+    decideBid: (ctx) => pick(ctx).decideBid(ctx),
+    chooseWords: (ctx) => pick(ctx).chooseWords(ctx),
+    letterValue: (ctx) => pick(ctx).letterValue(ctx),
+  };
+}
+
+function createBase(
+  dict: Dict,
+  params: Partial<Params>,
+  prices: PriceTable | null,
+  tops: PriceTable | null,
 ): Strategy {
   const p: Params = { ...DEFAULT_PARAMS, ...params };
 

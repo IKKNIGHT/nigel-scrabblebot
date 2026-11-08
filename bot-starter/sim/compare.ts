@@ -35,6 +35,9 @@ export interface Paired {
   placeB: number;
   diff: ReturnType<typeof meanCI>; // place B − place A (negative = B better)
   scoreDiff: ReturnType<typeof meanCI>;
+  lastDiff: ReturnType<typeof meanCI>; // finished last, B − A (elimination knocks out last place)
+  lastA: number;
+  lastB: number;
   winA: number;
   winB: number;
   errors: number;
@@ -43,20 +46,36 @@ export interface Paired {
 export function pair(a: Map<number, JobResult>, b: Map<number, JobResult>, seats: Map<number, number>): Paired {
   const dPlace: number[] = [];
   const dScore: number[] = [];
-  let pa = 0, pb = 0, wa = 0, wb = 0, errors = 0;
+  const dLast: number[] = [];
+  let pa = 0, pb = 0, wa = 0, wb = 0, la = 0, lb = 0, errors = 0;
   for (const [m, ra] of a) {
     const rb = b.get(m);
     if (!rb) continue;
     const s = seats.get(m)!;
     const A = ra.seats[s]!, B = rb.seats[s]!;
+    const lastA = A.place === ra.seats.length ? 1 : 0, lastB = B.place === rb.seats.length ? 1 : 0;
     dPlace.push(B.place - A.place);
     dScore.push(B.score - A.score);
+    dLast.push(lastB - lastA);
+    la += lastA; lb += lastB;
     pa += A.place; pb += B.place;
     wa += A.place === 1 ? 1 : 0; wb += B.place === 1 ? 1 : 0;
     errors += A.errors + B.errors;
   }
   const n = dPlace.length || 1;
-  return { n: dPlace.length, placeA: pa / n, placeB: pb / n, diff: meanCI(dPlace), scoreDiff: meanCI(dScore), winA: wa / n, winB: wb / n, errors };
+  return {
+    n: dPlace.length,
+    placeA: pa / n,
+    placeB: pb / n,
+    diff: meanCI(dPlace),
+    scoreDiff: meanCI(dScore),
+    lastDiff: meanCI(dLast),
+    lastA: la / n,
+    lastB: lb / n,
+    winA: wa / n,
+    winB: wb / n,
+    errors,
+  };
 }
 
 async function main() {
@@ -66,14 +85,15 @@ async function main() {
   const matches = Number(arg("matches", "300"));
   const pool = arg("pool", DEFAULT_POOL)!.split(",");
   const seed = Number(arg("seed", "4242"));
-  const firstPrice = arg("first-price") === "true";
+  const firstPrice = process.argv.includes("--first-price") && arg("first-price") !== "false";
+  const nSeats = Number(arg("seats", "6"));
   const workers = Math.max(1, Number(arg("workers", String(defaultWorkers()))));
   const t0 = Date.now();
 
   const jobs: Job[] = [];
   const seats = new Map<number, number>();
   for (let m = 0; m < matches; m++) {
-    const { opponents, seat } = tableFor(pool, seed, m);
+    const { opponents, seat } = tableFor(pool, seed, m, nSeats);
     seats.set(m, seat);
     const s = seed + m * 7919;
     jobs.push({ id: 2 * m, table: withCandidate(opponents, seat, a), seed: s, firstPrice });
@@ -93,6 +113,9 @@ async function main() {
   console.log(`A ${a}: avg place ${r.placeA.toFixed(2)}, win ${(r.winA * 100).toFixed(1)}%`);
   console.log(`B ${b}: avg place ${r.placeB.toFixed(2)}, win ${(r.winB * 100).toFixed(1)}%`);
   console.log(`place B−A: ${r.diff.mean.toFixed(3)} ±${r.diff.ci.toFixed(3)}   score B−A: ${r.scoreDiff.mean.toFixed(1)} ±${r.scoreDiff.ci.toFixed(1)}`);
+  console.log(
+    `last place A ${(r.lastA * 100).toFixed(1)}% B ${(r.lastB * 100).toFixed(1)}%   B−A: ${(r.lastDiff.mean * 100).toFixed(1)} ±${(r.lastDiff.ci * 100).toFixed(1)} pts`,
+  );
   console.log(`verdict: ${verdict}${r.errors ? `  (${r.errors} agent errors)` : ""}`);
   const out = arg("out");
   if (out) fs.writeFileSync(out, JSON.stringify({ a, b, pool, seed, ...r, verdict }, null, 2));
