@@ -407,15 +407,18 @@ function createBase(
         needCash = value(bctx) > cash + p.cashRevise;
       }
       const tooBig = rackSize(rack) > p.holdMax;
-      if (!needCash && !tooBig) {
-        // Voluntary cash: not a short word that spends a high-value letter.
-        // Take the best word that keeps it instead, if there is one.
-        if (hiShort(k)) {
-          const alt = playable(dict, rack, 8, 2).find((j) => !hiShort(j));
-          if (alt === undefined) break;
+      // Unless truly forced (broke, or rack overflowing), don't spend a
+      // high-value letter on a short word: take the best word that keeps it,
+      // if that word still does the job (half the reward when cashing for a
+      // bid). Live, half of our J/Q/X/Z went into short words this way.
+      if (!(cash < p.lowCash || tooBig) && hiShort(k)) {
+        const alt = playable(dict, rack, 8, 2).find((j) => !hiShort(j));
+        if (alt !== undefined && (!needCash || dict.reward[alt]! >= rw / 2)) {
           k = alt;
           rw = dict.reward[k]!;
-        }
+        } else if (!needCash) break;
+      }
+      if (!needCash && !tooBig) {
         // Leading late: bank safe words rather than risk the lead.
         const ease = p.leadCash > 0 && standing(ctx) >= 10 ? 1 - p.leadCash : 1;
         if (rw < p.minPlayReward * ease) break;
