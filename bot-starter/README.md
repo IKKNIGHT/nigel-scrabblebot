@@ -179,7 +179,9 @@ and auction type) but none are needed.
 |---|---|---|---|---|---|---|
 | hand-set + evolve (old prices) | 11 | 3.45 | 0% | 27% | 72 | 33 |
 | evolve 5150 gen 2 | 74 | 2.77 | 30% | 5% | 88 | 15 |
-| combo B (final) | 27 | 2.70 | 30% | 0% | 89 | 15 |
+| combo B (final) | 75 | 2.35 | 37% | 0% | 95 | 15 |
+
+At 9 PM CT N1gel was 9th of 91 active bots on the ladder (rating 40.1, μ 49.4), up from 16th of 46 at 6:30 PM.
 
 ## Credits
 
