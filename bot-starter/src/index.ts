@@ -296,6 +296,7 @@ function busy(conn: DbConnection): boolean {
 let lobbyLogged = false;
 function joinLobby(conn: DbConnection) {
   if (myBotId === null) return;
+  if (process.env.NO_LOBBY === "1") return; // tournament only: stay free for seating
   if (busy(conn)) return;
   if (!lobbyLogged) console.log(`[${BOT_NAME}] joining lobby`);
   lobbyLogged = true;
