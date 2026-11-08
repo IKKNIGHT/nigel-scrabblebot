@@ -47,6 +47,7 @@ export interface Params {
   endSpend: number; // > 0: in the last endSpendN auctions, bid ≥ endSpend × balance on letters that help
   endSpendN: number;
   tableK: number; // > 0: the tile floor also applies when behind tableK × this table's tile leader
+  tableMult: number; // floor multiplier for that case (0 = floorMult)
   endN: number; // in the last endN auctions, value by exact best split
   allIn: number; // 1 = bid everything on the last playable tile if it scores
   denyW: number; // bid ≥ denyW × what the letter adds to a rival's best word
@@ -92,6 +93,7 @@ export const DEFAULT_PARAMS: Params = {
   endSpend: 0,
   endSpendN: 10,
   tableK: 0,
+  tableMult: 0,
   endN: 3,
   allIn: 1,
   denyW: 0,
@@ -290,17 +292,19 @@ function createBase(
     if (p.floorMult > 0) {
       let won = 0;
       for (const r of ctx.results) if (r.winner === ctx.me) won++;
-      let behind = won < (p.letterTarget * ctx.round) / ctx.totalRounds - p.slack;
+      const behind = won < (p.letterTarget * ctx.round) / ctx.totalRounds - p.slack;
       // Also behind when trailing this table's tile leader: strong tables
-      // outbid the fixed pace, and losing that race loses the match.
-      if (!behind && p.tableK > 0) {
+      // outbid the fixed pace, and losing that race loses the match. That
+      // floor can sit higher (tableMult) to actually win the tile.
+      let mult = behind ? p.floorMult : 0;
+      if (p.tableK > 0) {
         const wins = new Map<string, number>();
         for (const r of ctx.results) if (r.winner && r.winner !== ctx.me) wins.set(r.winner, (wins.get(r.winner) ?? 0) + 1);
         const lead = Math.max(0, ...wins.values());
-        behind = won < p.tableK * lead - p.slack;
+        if (won < p.tableK * lead - p.slack) mult = Math.max(mult, p.tableMult > 0 ? p.tableMult : p.floorMult);
       }
-      if (behind && (delta > 0 || rackSize(ctx.rack) < 8)) {
-        bid = Math.max(bid, p.floorMult * topOf(c, phase) + 1);
+      if (mult > 0 && (delta > 0 || rackSize(ctx.rack) < 8)) {
+        bid = Math.max(bid, mult * topOf(c, phase) + 1);
       }
     }
     if (p.denyW > 0) bid = Math.max(bid, p.denyW * denyGain(ctx, c));
