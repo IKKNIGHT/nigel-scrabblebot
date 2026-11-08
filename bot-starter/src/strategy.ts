@@ -44,6 +44,8 @@ export interface Params {
   slack: number; // tiles behind pace before the floor kicks in
   qW: number; // multiplier on a Q with no U or I
   qNeedU: number; // 1 = only a U spares the Q its discount (an I rarely makes a Q word)
+  endSpend: number; // > 0: in the last endSpendN auctions, bid ≥ endSpend × balance on letters that help
+  endSpendN: number;
   endN: number; // in the last endN auctions, value by exact best split
   allIn: number; // 1 = bid everything on the last playable tile if it scores
   denyW: number; // bid ≥ denyW × what the letter adds to a rival's best word
@@ -86,6 +88,8 @@ export const DEFAULT_PARAMS: Params = {
   slack: 2,
   qW: 0.3,
   qNeedU: 0,
+  endSpend: 0,
+  endSpendN: 10,
   endN: 3,
   allIn: 1,
   denyW: 0,
@@ -290,6 +294,11 @@ function createBase(
       }
     }
     if (p.denyW > 0) bid = Math.max(bid, p.denyW * denyGain(ctx, c));
+    // Spend down: coins are worth nothing at the close, so late on a letter
+    // that helps gets a real share of what's left.
+    if (p.endSpend > 0 && delta > 0 && ctx.auctionsLeft > 1 && ctx.auctionsLeft <= p.endSpendN) {
+      bid = Math.max(bid, p.endSpend * ctx.balance);
+    }
     // Wallets: under second price we pay at most the richest rival's
     // balance, so outbidding them all is safe when the letter is worth it.
     if (p.walletW > 0 && delta > 0 && ctx.auctionType !== "FirstPrice" && ctx.opponents.length > 0) {
