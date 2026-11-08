@@ -48,6 +48,7 @@ export interface Params {
   endSpendN: number;
   tableK: number; // > 0: the tile floor also applies when behind tableK × this table's tile leader
   tableMult: number; // floor multiplier for that case (0 = floorMult)
+  hiMinLen: number; // > 0: never cash a word shorter than this that contains an 8+ point letter, unless forced
   endN: number; // in the last endN auctions, value by exact best split
   allIn: number; // 1 = bid everything on the last playable tile if it scores
   denyW: number; // bid ≥ denyW × what the letter adds to a rival's best word
@@ -94,6 +95,7 @@ export const DEFAULT_PARAMS: Params = {
   endSpendN: 10,
   tableK: 0,
   tableMult: 0,
+  hiMinLen: 0,
   endN: 3,
   allIn: 1,
   denyW: 0,
@@ -383,10 +385,19 @@ function createBase(
       play(pick);
     }
 
+    // A J/Q/X/Z is worth 3× in a 7+ word and 1–2.5× in a short one; the
+    // match winners keep 80% of theirs for long words, we kept a third.
+    const hiShort = (k: number) => {
+      if (p.hiMinLen <= 0) return false;
+      const w = dict.words[k]!;
+      if (w.length >= p.hiMinLen) return false;
+      for (const ch of w) if (VALUE[idx(ch)]! >= 8) return true;
+      return false;
+    };
     for (let guard = 0; guard < 4; guard++) {
-      const k = bestWord(dict, rack, 2);
+      let k = bestWord(dict, rack, 2);
       if (k < 0) break;
-      const rw = dict.reward[k]!;
+      let rw = dict.reward[k]!;
       let needCash = cash < p.lowCash;
       if (!needCash && p.cashRevise > 0 && ctx.letter && ctx.auctionsLeft > 1) {
         // Cash-then-revise: if this letter is worth clearly more to the rack
@@ -397,6 +408,14 @@ function createBase(
       }
       const tooBig = rackSize(rack) > p.holdMax;
       if (!needCash && !tooBig) {
+        // Voluntary cash: not a short word that spends a high-value letter.
+        // Take the best word that keeps it instead, if there is one.
+        if (hiShort(k)) {
+          const alt = playable(dict, rack, 8, 2).find((j) => !hiShort(j));
+          if (alt === undefined) break;
+          k = alt;
+          rw = dict.reward[k]!;
+        }
         // Leading late: bank safe words rather than risk the lead.
         const ease = p.leadCash > 0 && standing(ctx) >= 10 ? 1 - p.leadCash : 1;
         if (rw < p.minPlayReward * ease) break;
