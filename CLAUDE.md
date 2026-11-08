@@ -55,12 +55,12 @@ npx tsx train/fit_profiles.ts              # profiles.json (proxies bron / lucen
 | Area | State |
 |---|---|
 | Word finder, bag/rival tracking, strategy (`src/`) | **Done.** Tests pass and typecheck is clean |
-| Live client (`src/index.ts`): quick bid then revise, JSONL logs, auto-reconnect, tournament flag | **Written, never run live.** There is no `.token-nigel` file yet |
+| Live client (`src/index.ts`): quick bid then revise, JSONL logs, auto-reconnect, tournament flag | **Live since Nov 7 ~5:40 PM CT** as bot **N1gel** (id 209, team Marlin), token in `.token-N1gel`. Subscribes only to its own seat and current match (`subscribeToAllTables` stalled it at 4 GB). Lobby watchdog every 5 s. Restart: `BOT_NAME=N1gel npm start >> live.out 2>&1` from `bot-starter/` |
 | Sim engine, opponent pool, runner, A/B compare, evolve (`sim/`) | **Done** |
 | Top-bot proxies fitted from public data (`train/`) | **Done** (approximate) |
-| Param tuning | Evolve gens 1–2 (seed 4242) **adopted into `params.json`** on Nov 7: place Δ −0.147 ± 0.107 vs bron/lucent/maverick/brutus/valor/cheapo, see `results/2026-11-07-adopt-evolve-gen2.md`. The afterword holdout is not yet checked |
+| Param tuning | **Combo B live** (`params.json`, since 7:25 PM): costW 0.25, sevenBias 1.2, qNeedU 1, plus evolve settings. Sim: −0.28 ±0.10 place over 500 paired on a fresh seed. Live: 27 matches, avg place 2.70, 30% wins, 0% last. Previous: `results/params-gen2-backup.json`. Tests use `live@<Bot>` proxies refitted from the live market (tiles ~12 coins). See `results/2026-11-07-variants.md` |
 | Git | **Public repo:** https://github.com/IKKNIGHT/nigel-scrabblebot (branch `main`, `upstream` = clockworklabs/scrabblebot). Commit and push as you go |
-| README "Strategy" section for judges | **Missing.** `bot-starter/README.md` covers run, sim and layout only |
+| README "Strategy" section for judges | **Done**, with sim results, failed ideas, tournament cases and the live record per params version |
 
 ---
 

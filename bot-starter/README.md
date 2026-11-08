@@ -117,24 +117,69 @@ playable tile if it scores. In the last auctions it values letters by the
 exact best split of the rack, so the rack is emptied before the close.
 
 **Sim and tuning.** `sim/engine.ts` mirrors the server rules (Vickrey and
-first-price) with seeded tile order. The opponent pool has the server's sim
-bots, public forks and proxies of the top live bots (`bron`, `lucent`,
-`maverick`), fitted from public auction history in `train/`. A change is
-kept only if a paired `compare` (same seed, seat and opponents for both
-versions) over 300+ matches shows a place gain whose 95% CI doesn't cross 0.
+first-price) with seeded tile order and any table size. The opponent pool:
+- the server's sim bots;
+- public forks (gaucho);
+- Nigel itself (self-play);
+- proxies of 14 current live bots (`live@<BotName>`). They are fitted from
+  public, post-close auction history in `train/fit_profiles.ts`, and
+  `train/calibrate.ts` checks them against the real bots' tiles and prices.
+
+A change is kept only if a paired `compare` shows a place gain whose 95% CI
+doesn't cross 0. Paired means the same seed, seat and opponents for both
+versions, over 300+ matches. The final candidate is re-checked on a fresh
+seed over 500 matches. `compare` also reports how often each version
+finishes last, which is what the tournament's elimination stage punishes.
 `evolve` mutates the params within `params.bounds.json` and accepts a
-mutant by the same test. One opponent is kept out of tuning as a check for
-overfitting.
+mutant by the same test. LUCENT's proxy is kept out of tuning as a check
+for overfitting.
 
-**Results** (300 paired matches each, place B−A < 0 is better for B):
+**Live market check.** The first live matches showed the market was twice
+as expensive as our old data (tiles 12 coins, not 5–7). Nigel was losing
+auctions and finishing with 30–60 unspent coins. We re-pulled the public
+history, rebuilt the price table and refitted the proxies, and every test
+since uses that live-like market.
 
-| A → B | Opponents | Avg place A → B | Place B−A | Score B−A |
+**Results in the sim** (paired, place B−A < 0 is better for B; details in
+`results/2026-11-07-live-market.md` and `results/2026-11-07-variants.md`):
+
+| A → B | Matches | Place B−A | Score B−A | Last place A → B |
 |---|---|---|---|---|
-| hand-set → evolve gens 1–2 | bron, lucent, maverick, brutus, valor, cheapo | 1.79 → 1.65 | −0.147 ±0.107 | +8.3 ±3.5 |
-| hand-set → evolve gens 1–2 | cheapo, valor, brutus | 1.00 → 1.00 | 0 | +28.4 ±3.0 |
+| old params → evolve 5150 gen 2 | 300 | −0.463 ±0.159 | +6.6 ±2.0 | n/a |
+| gen 2 → combo B (fresh seed) | 500 | −0.282 ±0.104 | +5.7 ±1.7 | 2.2% → 1.4% |
+| gen 2 → combo B vs held-out LUCENT | 300 | −0.147 ±0.152 | +3.7 ±1.9 | 1.7% → 1.7% |
 
-Evolve log: `results/2026-11-07-evolve.md` (gen 1 −0.46 ±0.18, gen 2
-−0.17 ±0.18 over 150 matches each).
+Combo B is:
+- a smaller expected-price penalty (`costW` 0.25), so long words with
+  J/Q/X/Z are worth chasing;
+- the soft 7-letter rule (`sevenBias` 1.2);
+- only a U spares a Q its discount (`qNeedU`);
+- a few evolve settings.
+
+**Ideas that failed** (we tested them and kept them out of the live bot):
+- bidding more aggressively: +0.21 to +0.50 place, so worse;
+- pushing up overbidders' prices: no effect;
+- bidding against rivals' wallets: never triggered;
+- denying the leader: never triggered;
+- play-to-place risk changes: slightly worse;
+- requiring 6+ letter targets: worse.
+
+**Tournament cases:**
+- **First-price:** `shade` 0.6 and 0.9 are worse and 0.8 is no different,
+  so it stays at 0.7.
+- **2-player final:** Nigel wins 77% of 2-seat sims, and every change was
+  neutral or worse, so it keeps the defaults.
+
+Per-table overrides are supported (`modes` in a params file, by table size
+and auction type) but none are needed.
+
+**Live record** (public ladder, all-real-bot tables, from `logs/`):
+
+| Params | Matches | Avg place | Wins | Last place | Score | Coins left |
+|---|---|---|---|---|---|---|
+| hand-set + evolve (old prices) | 11 | 3.45 | 0% | 27% | 72 | 33 |
+| evolve 5150 gen 2 | 74 | 2.77 | 30% | 5% | 88 | 15 |
+| combo B (final) | 27 | 2.70 | 30% | 0% | 89 | 15 |
 
 ## Credits
 
