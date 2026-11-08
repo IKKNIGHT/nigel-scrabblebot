@@ -304,6 +304,34 @@ function joinLobby(conn: DbConnection) {
 
 let lobbyWatchdog: ReturnType<typeof setInterval> | undefined;
 
+// AUTO_TOURNAMENT=1: register for any tournament that opens for sign-ups.
+// Only one tournament exists at a time, and registering is idempotent.
+const AUTO_TOURNAMENT = process.env.AUTO_TOURNAMENT === "1";
+const registered = new Set<bigint>();
+function registerIfOpen(conn: DbConnection, t: { id: bigint; status: { tag: string } }) {
+  if (t.status.tag !== "Registration" || registered.has(t.id)) return;
+  registered.add(t.id);
+  conn.reducers
+    .registerForTournament({ tournamentId: t.id })
+    .then(() => console.log(`[${BOT_NAME}] registered for tournament ${t.id}`))
+    .catch((err: unknown) => {
+      registered.delete(t.id);
+      console.warn(`[${BOT_NAME}] tournament ${t.id} registration failed: ${err instanceof Error ? err.message : err}`);
+    });
+}
+function watchTournaments(conn: DbConnection) {
+  if (!AUTO_TOURNAMENT) return;
+  conn.db.tournament.onInsert((_ctx, t) => registerIfOpen(conn, t));
+  conn.db.tournament.onUpdate((_ctx, _old, t) => registerIfOpen(conn, t));
+  conn
+    .subscriptionBuilder()
+    .onApplied(() => {
+      console.log(`[${BOT_NAME}] watching for tournament registration`);
+      for (const t of conn.db.tournament.iter()) registerIfOpen(conn, t);
+    })
+    .subscribe("SELECT * FROM tournament");
+}
+
 function bootstrapActivity(conn: DbConnection) {
   if (TOURNAMENT_ID) {
     conn.reducers
@@ -354,6 +382,7 @@ function onConnect(conn: DbConnection, identity: Identity, token: string) {
               process.exit(1);
             }
             watchOwnSeats(conn);
+            watchTournaments(conn);
           }, 1000);
           return;
         }
@@ -365,6 +394,7 @@ function onConnect(conn: DbConnection, identity: Identity, token: string) {
       const bot = conn.db.bot.id.find(myBotId);
       console.log(`[${BOT_NAME}] acting as bot '${bot?.name ?? "?"}' (id ${myBotId})`);
       watchOwnSeats(conn);
+      watchTournaments(conn);
     })
     // Not subscribeToAllTables: that streams every match on the server
     // (millions of rows) and the client falls minutes behind. Small tables
