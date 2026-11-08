@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>N1gel live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --felt: #1d5a43;
+  --felt-deep: #123d2d;
+  --felt-line: #2c7257;
+  --ink-on-felt: #eef4ef;
+  --muted-on-felt: #a8c6b7;
+  --ivory: #f2e3bf;
+  --ivory-edge: #c9ad78;
+  --tile-ink: #26221b;
+  --wood: #8d5c2e;
+  --wood-dark: #5e3a19;
+  --gold: #f5c443;
+  --gold-deep: #b98a12;
+  --dl: #9ed4e8;   /* ×1.5: double letter blue */
+  --tl: #2f79b8;   /* ×2.5: triple letter blue */
+  --dw: #f0a2a5;   /* ×2: double word pink */
+  --tw: #d33f3f;   /* ×3: triple word red */
+  --bad: #ff8a7a;
+  --ok: #7fe0a6;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--felt-deep); overflow: hidden; }
+body { font-family: Jost, Futura, "Century Gothic", "Trebuchet MS", sans-serif; color: var(--ink-on-felt); font-variant-numeric: tabular-nums; }
+
+/* Fixed 1920×1080 stage, scaled to fit the screen. */
+#stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center center;
+  display: grid; grid-template-rows: 112px 1fr 176px; gap: 18px; padding: 22px 28px 24px;
+  background: radial-gradient(ellipse at 50% 42%, #24694f 0%, var(--felt) 45%, var(--felt-deep) 100%); }
+
+/* ---------- tiles ---------- */
+.t { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: var(--s); height: var(--s); border-radius: calc(var(--s) * .12);
+  background: linear-gradient(160deg, #f8ecd0 0%, var(--ivory) 55%, #e6d2a6 100%);
+  box-shadow: inset 0 calc(var(--s) * -.06) 0 var(--ivory-edge), 0 calc(var(--s) * .05) calc(var(--s) * .08) rgba(0,0,0,.35);
+  color: var(--tile-ink); font-weight: 600; font-size: calc(var(--s) * .62); line-height: 1; padding-bottom: calc(var(--s) * .05); }
+.t sub { position: absolute; right: calc(var(--s) * .1); bottom: calc(var(--s) * .1); font-size: calc(var(--s) * .22); font-weight: 600; line-height: 1; }
+.t.back { background: linear-gradient(160deg, #3c8a6a, #23654b); box-shadow: inset 0 calc(var(--s) * -.06) 0 #174a36, 0 2px 4px rgba(0,0,0,.35); }
+.t.back::after { content: ""; width: 40%; height: 40%; border: 2px solid rgba(255,255,255,.18); border-radius: 50%; }
+.t.back.cnt { color: var(--ivory); font-weight: 700; font-size: calc(var(--s) * .55); }
+.t.back.cnt::after { display: none; }
+.t.ghost { background: transparent; box-shadow: none; border: 2px dashed rgba(242,227,191,.55); color: rgba(242,227,191,.75); }
+.t.gold { background: linear-gradient(160deg, #ffe28a, var(--gold) 60%, #e2a91f); box-shadow: inset 0 calc(var(--s) * -.06) 0 var(--gold-deep), 0 3px 6px rgba(0,0,0,.35); }
+.s20 { --s: 20px; } .s24 { --s: 24px; } .s30 { --s: 30px; } .s66 { --s: 66px; } .s28 { --s: 28px; } .s34 { --s: 34px; } .s40 { --s: 40px; } .s46 { --s: 46px; } .s58 { --s: 58px; } .s84 { --s: 84px; } .s96 { --s: 96px; } .s170 { --s: 170px; } .s200 { --s: 200px; }
+.tiles { display: flex; gap: 4px; flex-wrap: nowrap; }
+
+/* ---------- header ---------- */
+header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 40px; }
+.mark { display: flex; align-items: center; gap: 18px; }
+.mark .tiles { gap: 6px; }
+.mark .live { font-size: 26px; font-weight: 500; color: var(--muted-on-felt); display: flex; align-items: center; gap: 10px; }
+.dot { width: 14px; height: 14px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px rgba(127,224,166,.18); }
+.dot.warn { background: var(--gold); box-shadow: 0 0 0 4px rgba(245,196,67,.2); }
+.dot.bad { background: var(--bad); box-shadow: 0 0 0 4px rgba(255,138,122,.2); }
+.dot.pulse { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.progress { display: flex; flex-direction: column; gap: 10px; }
+.progress .line { font-size: 24px; display: flex; gap: 22px; align-items: baseline; white-space: nowrap; }
+.progress .line b { font-size: 30px; font-weight: 700; }
+.progress .line span { color: var(--muted-on-felt); }
+.slots { display: grid; grid-template-columns: repeat(68, 1fr); gap: 3px; height: 22px; }
+.slot { border-radius: 3px; background: rgba(0,0,0,.22); }
+.slot.o { background: rgba(242,227,191,.42); }
+.slot.n { background: var(--gold); }
+.slot.now { background: transparent; box-shadow: inset 0 0 0 2px var(--ivory); animation: pulse 1s ease-in-out infinite; }
+.hud { display: flex; gap: 34px; align-items: center; font-size: 24px; }
+.hud .item { display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+.hud .item small { display: block; color: var(--muted-on-felt); font-size: 19px; }
+.hud .big { font-size: 34px; font-weight: 700; }
+
+/* ---------- body ---------- */
+main { display: grid; grid-template-columns: 430px minmax(0, 1fr) 470px; gap: 22px; min-height: 0; }
+.panel { background: rgba(8,36,26,.45); border-radius: 18px; padding: 22px 24px; min-height: 0; display: flex; flex-direction: column; }
+h2 { margin: 0 0 14px; font-size: 26px; font-weight: 600; color: var(--muted-on-felt); }
+
+/* standings as a score pad */
+.pad { display: flex; flex-direction: column; gap: 8px; }
+.row { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; column-gap: 14px; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.04); transition: background .4s; }
+.row .pl { font-size: 30px; font-weight: 700; color: var(--muted-on-felt); text-align: center; }
+.row .nm { font-size: 27px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .sub { grid-column: 2; font-size: 19px; color: var(--muted-on-felt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .sc { grid-row: 1 / span 2; grid-column: 3; font-size: 46px; font-weight: 700; }
+.row.me { background: rgba(245,196,67,.16); box-shadow: inset 4px 0 0 var(--gold); }
+.row.me .pl, .row.me .sc { color: var(--gold); }
+
+/* the table */
+.table { position: relative; border-radius: 26px; padding: 22px; background:
+  radial-gradient(ellipse at 50% 50%, rgba(255,255,255,.05), transparent 65%), var(--felt);
+  box-shadow: inset 0 0 0 10px var(--wood), inset 0 0 0 13px var(--wood-dark), inset 0 0 50px rgba(0,0,0,.35);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px 18px; padding: 30px 34px; min-height: 0; }
+.seat { display: flex; flex-direction: column; gap: 8px; align-items: center; min-width: 0; }
+.seat .who { font-size: 23px; font-weight: 600; display: flex; gap: 12px; align-items: baseline; max-width: 100%; }
+.seat .who .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat .who .c { color: var(--muted-on-felt); font-weight: 500; font-size: 20px; white-space: nowrap; }
+.rack { display: flex; gap: 4px; padding: 8px 12px 10px; min-height: 58px; min-width: 120px; max-width: 100%; justify-content: center; flex-wrap: wrap;
+  border-radius: 8px; background: linear-gradient(180deg, #a36d39, var(--wood) 55%, var(--wood-dark)); box-shadow: 0 6px 12px rgba(0,0,0,.35); }
+.seat.won .rack { box-shadow: 0 0 0 4px var(--ivory), 0 6px 12px rgba(0,0,0,.35); }
+.mid { grid-column: 2; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+.mid .cap { font-size: 26px; text-align: center; }
+.mid .cap b { color: var(--gold); }
+.mid .last { font-size: 22px; color: var(--muted-on-felt); text-align: center; max-width: 520px; }
+.mid .last b { color: var(--ink-on-felt); font-weight: 600; }
+.mid .last .w { color: var(--gold); }
+.side { display: flex; align-items: center; justify-content: center; }
+.nigel { grid-column: 1 / span 3; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 30px; align-items: center; padding: 14px 24px;
+  border-radius: 18px; background: rgba(245,196,67,.08); box-shadow: inset 0 0 0 2px rgba(245,196,67,.4); transition: box-shadow .4s, background .4s; }
+.nigel.hot { background: rgba(245,196,67,.22); box-shadow: inset 0 0 0 3px var(--gold), 0 0 40px rgba(245,196,67,.4); }
+.nigel.alarm { background: rgba(211,63,63,.18); box-shadow: inset 0 0 0 3px var(--tw); }
+.nigel .rack { padding: 8px 12px 10px; min-height: 86px; min-width: 300px; flex-wrap: nowrap; }
+.nigel .head { font-size: 28px; font-weight: 700; color: var(--gold); margin-bottom: 8px; display: flex; gap: 18px; align-items: baseline; }
+.nigel .head span { color: var(--ink-on-felt); font-weight: 500; font-size: 24px; }
+.plan { display: flex; flex-direction: column; gap: 10px; font-size: 24px; }
+.plan .k { color: var(--muted-on-felt); font-size: 20px; margin-bottom: 4px; }
+.plan .v { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.plan .v em { font-style: normal; font-weight: 700; font-size: 26px; }
+.plan .warn { color: var(--bad); font-weight: 600; }
+
+.overlay { position: absolute; inset: 34px; border-radius: 18px; background: rgba(9,40,29,.92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; text-align: center; }
+.overlay .place { font-size: 150px; font-weight: 800; line-height: 1; color: var(--gold); }
+.overlay .what { font-size: 36px; font-weight: 600; }
+.overlay .more { font-size: 25px; color: var(--muted-on-felt); }
+
+/* right: tonight */
+.record { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 18px; }
+.pt { --s: 34px; font-size: 19px; }
+.pt.p1 { background: linear-gradient(160deg, #ffe28a, var(--gold)); box-shadow: inset 0 -2px 0 var(--gold-deep); }
+.pt.p4, .pt.p5 { background: #a89a7b; box-shadow: inset 0 -2px 0 #7d7159; }
+.pt.p6 { background: #c76a5f; box-shadow: inset 0 -2px 0 #8f443b; color: #fff4ee; }
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+.kpi .v { font-size: 40px; font-weight: 700; line-height: 1.05; }
+.kpi .k { font-size: 18px; color: var(--muted-on-felt); }
+.ver { font-size: 20px; line-height: 1.35; color: var(--muted-on-felt); padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,.05); margin-bottom: 16px; }
+.ver b { color: var(--ink-on-felt); font-weight: 600; }
+.ver .up { color: var(--ok); font-weight: 600; } .ver .down { color: var(--bad); font-weight: 600; }
+.chart { position: relative; flex: 1; min-height: 0; }
+.chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.chart .now { font-size: 20px; color: var(--muted-on-felt); margin-bottom: 4px; }
+.chart .now b { color: var(--gold); font-size: 28px; }
+
+/* bottom band */
+footer { display: grid; grid-template-columns: minmax(0, 1fr) 680px; gap: 22px; min-height: 0; }
+.feed { display: flex; gap: 22px; overflow: hidden; align-items: flex-start; }
+.wp { display: flex; flex-direction: column; gap: 8px; flex: none; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.04); }
+.wp.me { background: rgba(245,196,67,.14); box-shadow: inset 0 0 0 2px rgba(245,196,67,.5); }
+.wp .meta { display: flex; gap: 10px; align-items: center; font-size: 20px; color: var(--muted-on-felt); }
+.wp .meta b { color: var(--ink-on-felt); font-size: 24px; }
+.mx { display: inline-flex; align-items: center; justify-content: center; min-width: 46px; height: 28px; padding: 0 6px; border-radius: 5px; font-size: 18px; font-weight: 700; color: #1d1a15; }
+.m1 { background: #cfc6b0; } .m15 { background: var(--dl); } .m2 { background: var(--dw); } .m25 { background: var(--tl); color: #fff; } .m3 { background: var(--tw); color: #fff; }
+.wp.fresh { animation: drop .5s cubic-bezier(.2,.9,.3,1.3); }
+@keyframes drop { from { transform: translateY(-30px); opacity: 0; } }
+.market { display: grid; grid-template-columns: repeat(13, 1fr); gap: 4px 4px; align-content: start; }
+footer h2 { font-size: 21px; margin-bottom: 10px; }
+.mk { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.mk .bar { width: 34px; height: 8px; border-radius: 4px; background: rgba(255,255,255,.12); }
+.mk .bar.hot { background: var(--tw); } .mk .bar.warm { background: var(--dw); } .mk .bar.cool { background: var(--dl); }
+.sw { display: inline-block; width: 20px; height: 9px; border-radius: 4px; margin: 0 4px 2px 10px; vertical-align: middle; }
+.legend { font-size: 18px; color: var(--muted-on-felt); display: flex; gap: 18px; margin-top: 8px; align-items: center; }
+.legend i { display: inline-block; width: 22px; height: 8px; border-radius: 4px; margin-right: 6px; vertical-align: middle; }
+
+.fly { position: fixed; z-index: 10; pointer-events: none; transition: transform .7s cubic-bezier(.5,0,.2,1), opacity .7s; }
+#offline { position: fixed; inset: auto 0 0 0; padding: 10px; text-align: center; font-size: 22px; background: var(--tw); color: #fff; display: none; z-index: 20; }
+.empty { color: var(--muted-on-felt); font-size: 22px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <header>
+    <div class="mark">
+      <div class="tiles" id="wordmark"></div>
+      <div class="live"><span class="dot pulse" id="livedot"></span><span id="livetext">live</span></div>
+    </div>
+    <div class="progress">
+      <div class="line" id="pline"></div>
+      <div class="slots" id="slots"></div>
+    </div>
+    <div class="hud" id="hud"></div>
+  </header>
+  <main>
+    <section class="panel"><h2>Standings</h2><div class="pad" id="standings"></div></section>
+    <section class="table" id="table"></section>
+    <section class="panel" id="tonight"></section>
+  </main>
+  <footer>
+    <section class="panel"><h2>Words played</h2><div class="feed" id="feed"></div></section>
+    <section class="panel"><h2 style="white-space:nowrap;font-size:19px">Prices tonight vs Nigel's table<span class="sw" style="background:var(--tw)"></span>much dearer<span class="sw" style="background:var(--dw)"></span>dearer<span class="sw" style="background:var(--dl)"></span>cheaper</h2><div class="market" id="market"></div></section>
+  </footer>
+</div>
+<div id="offline">The dashboard server isn't responding. Check the terminal running dashboard/server.ts.</div>
+<script>
+const V = {A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,N:1,O:1,P:3,Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10};
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const tile = (c, s, cls = "") => `<span class="t s${s} ${cls}">${esc(c)}${V[c] ? `<sub>${V[c]}</sub>` : ""}</span>`;
+const tiles = (w, s, cls) => [...w].map((c) => tile(c, s, cls)).join("");
+const backs = (n, s) => `<span class="t back s${s}"></span>`.repeat(n);
+const ord = (n) => n + (n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th");
+const fmt1 = (x) => (x == null || isNaN(x) ? "–" : x.toFixed(2));
+const pct = (x) => Math.round((x || 0) * 100) + "%";
+const clock = (t) => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const dur = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? `${h}:${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}` : `${m}:${String(s % 60).padStart(2, "0")}`; };
+const multCls = (m) => ({ 1: "m1", 1.5: "m15", 2: "m2", 2.5: "m25", 3: "m3" }[m]);
+
+// Scale the 1920×1080 stage to the window.
+function fit() { const k = Math.min(innerWidth / 1920, innerHeight / 1080); $("stage").style.transform = `translate(-50%,-50%) scale(${k})`; }
+addEventListener("resize", fit); fit();
+$("wordmark").innerHTML = tiles("N", 58) + tile("1", 58) + tiles("GEL", 58);
+
+let S = null, prev = null, seenWords = new Set(), firstRender = true;
+
+function render() {
+  const d = S; if (!d) return;
+  const m = d.match;
+  const me = m && m.seats.find((s) => s.isNigel);
+
+  // header
+  const running = m && m.status === "Running";
+  $("livedot").className = "dot " + (!d.server ? "bad" : running ? "pulse" : "warn");
+  $("livetext").textContent = d.source === "replay" ? "replay" : !d.server ? "not connected" : running ? "live" : "between matches";
+  if (m) {
+    const total = 68;
+    $("pline").innerHTML = `<b>Auction ${running ? m.round : total} of ${total}</b><span>Match ${esc(m.id)}</span><span>${m.auctionType === "FirstPrice" ? "First-price auctions" : "Second-price auctions"}</span>`;
+    let html = "";
+    for (let i = 0; i < total; i++) {
+      const v = m.strip[i];
+      html += `<div class="slot ${v === 2 ? "n" : v === 1 ? "o" : ""} ${running && i === m.strip.length ? "now" : ""}"></div>`;
+    }
+    $("slots").innerHTML = html;
+  } else {
+    $("pline").innerHTML = `<b>Waiting for a match</b>`;
+    $("slots").innerHTML = "";
+  }
+  const h = d.health;
+  let botState, botCls;
+  if (h.inMatch) {
+    const ago = h.lastBidAgo;
+    botCls = ago != null && ago > 3000 ? "bad" : "";
+    botState = ago != null && ago > 3000 ? `No bid for ${Math.round(ago / 1000)} s` : `Bidding, ${me && m.nigel && m.nigel.bidMsMax != null ? m.nigel.bidMsMax + " ms max" : "ok"}`;
+  } else {
+    const idle = h.idleFor;
+    botCls = idle != null && idle > 120000 ? "bad" : "warn";
+    botState = idle != null ? `In the lobby for ${dur(idle)}` : "In the lobby";
+  }
+  const errTxt = `${h.errors} error${h.errors === 1 ? "" : "s"}, ${h.reconnects} reconnect${h.reconnects === 1 ? "" : "s"}`;
+  const tc = d.tournament;
+  const tLeft = tc.at - d.now;
+  const tour = tc.current && tc.current.status !== "Finished" && tc.current.status !== "Cancelled" && tc.current.status !== "Registering"
+    ? `<div class="item"><div><small>Tournament</small><span class="big">${esc(tc.current.status)} ${tc.current.round || ""}</span></div></div>`
+    : `<div class="item"><div><small>Tournament starts in</small><span class="big">${tLeft > 0 ? dur(tLeft) : "now"}</span></div></div>`;
+  $("hud").innerHTML = `
+    <div class="item"><span class="dot ${botCls}"></span><div><small>Nigel</small>${esc(botState)}</div></div>
+    <div class="item"><div><small>Since ${h.restartAt ? clock(h.restartAt) : "start"}</small>${errTxt}</div></div>
+    ${tour}`;
+
+  // standings
+  if (m) {
+    const byBot = Object.fromEntries(m.seats.map((s) => [s.bot, s]));
+    $("standings").innerHTML = m.standings.map((b) => {
+      const s = byBot[b];
+      return `<div class="row ${s.isNigel ? "me" : ""}"><div class="pl">${s.place}</div><div class="nm">${esc(s.name)}</div>
+        <div class="sc">${s.score}</div><div class="sub">${s.coins} coins${s.rating ? `, rated ${s.rating}` : ""}</div></div>`;
+    }).join("");
+  } else $("standings").innerHTML = `<div class="empty">Nigel isn't in a match yet.</div>`;
+
+  renderTable(d, m, me);
+  renderTonight(d);
+  renderFeed(m);
+  renderMarket(d.market);
+  firstRender = false;
+}
+
+function seatHtml(s, lastWinner) {
+  const n = s.rack.length + (s.hidden ? 1 : 0); const tsz = n > 9 ? 24 : n > 7 ? 28 : 34;
+  return `<div class="seat ${s.bot === lastWinner ? "won" : ""}" data-bot="${s.bot}">
+    <div class="who"><span class="n">${esc(s.name)}</span><span class="c">${s.score} pts, ${s.coins} coins</span></div>
+    <div class="rack">${tiles(s.rack, tsz)}${s.hidden ? `<span class="t back cnt s${tsz}" title="${s.hidden} tiles dealt face down">${s.hidden}</span>` : ""}</div></div>`;
+}
+
+function renderTable(d, m, me) {
+  const el = $("table");
+  if (!m) { el.innerHTML = `<div class="overlay"><div class="what">Waiting for Nigel's next match</div><div class="more">The lobby fills to six seats, or sim bots join after 90 seconds.</div></div>`; return; }
+  const rivals = m.seats.filter((s) => !s.isNigel);
+  const last = m.results[0];
+  const lastWinner = last ? last.winner : null;
+  const slot = (i) => (rivals[i] ? seatHtml(rivals[i], lastWinner) : "<div></div>");
+
+  let block;
+  if (m.open) {
+    const nb = m.open.nigelBid;
+    block = `${tile(m.open.letter, 170)}<div class="cap">${nb ? `Nigel bids <b>${nb}</b>` : "Nigel isn't bidding"}</div>`;
+  } else block = `<span class="t s170 ghost">?</span><div class="cap">No tile on the block</div>`;
+  if (last) {
+    const nb = last.nigelBid;
+    block += `<div class="last">Last tile: <b>${esc(last.letter)}</b> ${last.winner ? `to <b class="${last.won ? "w" : ""}">${esc(last.winnerName)}</b> for ${last.paid}` : "went unsold"}${nb ? `, Nigel bid ${nb}` : ""}</div>`;
+  }
+
+  let nigel = "";
+  if (me && m.nigel) {
+    const n = m.nigel;
+    const p = n.plan;
+    const rackT = me.rack ? tiles(me.rack, me.rack.length > 9 ? 46 : me.rack.length > 7 ? 58 : 66) : `<span class="empty">Empty rack</span>`;
+    let planHtml = "";
+    if (p) {
+      planHtml += `<div><div class="k">Best play right now</div><div class="v">${p.best ? `${p.best.words.map((w) => `<span class="tiles">${tiles(w, w.length > 7 ? 30 : 34)}</span>`).join("")}<em>+${p.best.reward}</em>` : `<span class="empty">No word on this rack</span>`}</div></div>`;
+      if (p.target) {
+        const miss = [...p.target.missing];
+        planHtml += `<div><div class="k">Likely building toward</div><div class="v"><span class="tiles">${[...p.target.word].map((c) => {
+          const i = miss.indexOf(c); if (i >= 0) { miss.splice(i, 1); return tile(c, p.target.word.length > 7 ? 30 : 34, "ghost"); } return tile(c, p.target.word.length > 7 ? 30 : 34);
+        }).join("")}</span><em>+${p.target.reward}</em></div></div>`;
+      }
+    }
+    const lowCoins = m.status === "Running" && me.coins < 10 && m.round < 60 && me.rack.length > 0;
+    const hasQ = me.rack.includes("Q") && !me.rack.includes("U");
+    if (lowCoins) planHtml += `<div class="warn">Only ${me.coins} coins left with ${68 - m.round} auctions to go</div>`;
+    else if (hasQ && m.round > 50) planHtml += `<div class="warn">Holding a Q with no U</div>`;
+    const recentSeven = m.words.find((w) => w.isNigel && w.word.length >= 7 && d.now - w.at < 4000);
+    nigel = `<div class="nigel ${lowCoins ? "alarm" : recentSeven ? "hot" : ""}" data-bot="${me.bot}">
+      <div><div class="head">N1gel<span>${me.score} points, ${me.coins} coins, ${ord(me.place)} place</span></div><div class="rack">${rackT}</div></div>
+      <div class="plan">${planHtml}</div></div>`;
+  }
+
+  let overlay = "";
+  if (m.status === "Ended" && me) {
+    overlay = `<div class="overlay"><div class="place">${ord(me.place)}</div>
+      <div class="what">Match ${esc(m.id)} is over: Nigel scored ${me.score}</div>
+      <div class="more">${me.coins} coins unspent${me.rack ? `, tiles left: ${esc(me.rack)}` : ", rack empty"}. Waiting for the next match.</div></div>`;
+  }
+  el.innerHTML = slot(0) + slot(1) + slot(2) + `<div class="side">${slot(3)}</div><div class="mid" id="block">${block}</div><div class="side">${slot(4)}</div>` + nigel + overlay;
+}
+
+function renderTonight(d) {
+  const t = d.tonight, l = d.last10, v = d.version;
+  const rec = d.record.slice(-30);
+  const recHtml = rec.length ? rec.map((r) => `<span class="t pt p${r.place}" title="Match ${r.id}">${r.place}</span>`).join("") : `<span class="empty">No finished matches yet</span>`;
+  let verHtml = "";
+  if (v.now.n || v.before.n) {
+    const delta = v.before.n && v.now.n ? v.now.avgPlace - v.before.avgPlace : null;
+    verHtml = !v.now.n ? `<div class="ver">Running <b>${esc(v.label)}</b>${v.since ? ` since ${clock(v.since)}` : ""}. No finished matches on it yet; before it, average place was ${fmt1(v.before.avgPlace)} over ${v.before.n}.</div>` : `<div class="ver">Running <b>${esc(v.label)}</b>${v.since ? ` since ${clock(v.since)}` : ""}: average place <b>${fmt1(v.now.avgPlace)}</b> over ${v.now.n} matches${v.before.n ? `, against ${fmt1(v.before.avgPlace)} over ${v.before.n} before${delta != null ? ` <span class="${delta < 0 ? "up" : "down"}">(${delta < 0 ? "better" : "worse"})</span>` : ""}` : ""}.</div>`;
+  }
+  const n = d.nigel;
+  $("tonight").innerHTML = `<h2>Tonight, last ${rec.length} matches</h2>
+    <div class="record">${recHtml}</div>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${fmt1(t.avgPlace)}</div><div class="k">average place, ${t.n} matches</div></div>
+      <div class="kpi"><div class="v">${pct(t.winRate)}</div><div class="k">matches won</div></div>
+      <div class="kpi"><div class="v">${Math.round(t.avgScore)}</div><div class="k">average score</div></div>
+      <div class="kpi"><div class="v">${Math.round(l.avgCoins)}</div><div class="k">coins unspent, last ${l.n}</div></div>
+      <div class="kpi"><div class="v">${l.stranded}<span style="font-size:24px;color:var(--muted-on-felt)"> of ${l.n}</span></div><div class="k">ended holding tiles${l.strandedQ ? `, ${l.strandedQ} with a Q` : ""}</div></div>
+      <div class="kpi"><div class="v">${pct(l.sevenShare)}</div><div class="k">points from 7+ letters</div></div>
+    </div>
+    ${verHtml}
+    <div class="chart"><div class="now">Rating <b>${n && n.rating ? n.rating : "–"}</b>${n && n.spread ? ` ± ${n.spread}` : ""}${n && n.rank ? `, rank ${n.rank}` : n && n.spread > 175 ? ", not ranked yet" : ""}</div><div id="rchart" style="height:calc(100% - 34px)"></div></div>`;
+  drawChart(d.rating.series);
+}
+
+function drawChart(series) {
+  const el = $("rchart"); if (!el) return;
+  const W = 420, H = Math.max(120, el.clientHeight || 200);
+  const pts = series.flatMap((s) => s.pts);
+  if (!pts.length) { el.innerHTML = `<div class="empty">No rated matches tonight yet</div>`; return; }
+  const x0 = Math.min(...pts.map((p) => p.at)), x1 = Math.max(...pts.map((p) => p.at));
+  const y0 = Math.min(...pts.map((p) => p.r)) - 20, y1 = Math.max(...pts.map((p) => p.r)) + 20;
+  const L = 6, R = 120;
+  const X = (t) => L + ((t - x0) / Math.max(1, x1 - x0)) * (W - L - R);
+  const Y = (r) => H - 8 - ((r - y0) / Math.max(1, y1 - y0)) * (H - 16);
+  const order = [...series].sort((a, b) => a.isNigel - b.isNigel);
+  let svg = "";
+  const labels = [];
+  for (const s of order) {
+    if (!s.pts.length) continue;
+    const dpath = s.pts.map((p, i) => `${i ? "L" : "M"}${X(p.at).toFixed(1)},${Y(p.r).toFixed(1)}`).join("");
+    const col = s.isNigel ? "var(--gold)" : "rgba(238,244,239,.38)";
+    svg += `<path d="${dpath}" fill="none" stroke="${col}" stroke-width="${s.isNigel ? 5 : 2.5}" stroke-linejoin="round" stroke-linecap="round"/>`;
+    const lp = s.pts[s.pts.length - 1];
+    labels.push({ y: Y(lp.r), x: X(lp.at), name: s.name, me: s.isNigel, r: lp.r });
+  }
+  // Keep end labels from overlapping.
+  labels.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < 20) labels[i].y = labels[i - 1].y + 20;
+  for (const lb of labels) svg += `<text x="${W - R + 10}" y="${lb.y + 6}" font-size="${lb.me ? 19 : 16}" font-weight="${lb.me ? 700 : 500}" fill="${lb.me ? "var(--gold)" : "rgba(238,244,239,.7)"}">${esc(lb.name.slice(0, 12))}</text>`;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${svg}</svg>`;
+}
+
+function renderFeed(m) {
+  const el = $("feed");
+  if (!m || !m.words.length) { el.innerHTML = `<div class="empty">No words played yet this match</div>`; return; }
+  el.innerHTML = m.words.map((w) => {
+    const key = m.id + ":" + w.bot + ":" + w.word + ":" + w.at;
+    const fresh = !firstRender && !seenWords.has(key);
+    seenWords.add(key);
+    const sz = w.word.length > 8 ? 28 : 34;
+    return `<div class="wp ${w.isNigel ? "me" : ""} ${fresh ? "fresh" : ""}"><div class="tiles">${tiles(w.word, sz)}</div>
+      <div class="meta"><span class="mx ${multCls(w.mult)}">×${w.mult}</span><b>+${w.reward}</b>${esc(w.name)}</div></div>`;
+  }).join("");
+}
+
+function renderMarket(mk) {
+  $("market").innerHTML = mk.map((x) => {
+    const r = x.ratio;
+    const cls = r == null ? "" : r > 1.4 ? "hot" : r > 1.15 ? "warm" : r < 0.85 ? "cool" : "";
+    const title = x.avg != null ? `${x.letter}: ${x.avg.toFixed(1)} tonight vs ${x.table?.toFixed(1)} in the table` : `${x.letter}: no sales`;
+    return `<div class="mk" title="${title}">${tile(x.letter, 34)}<div class="bar ${cls}"></div></div>`;
+  }).join("");
+}
+
+// When an auction closes, fly the tile from the block to the winner's seat.
+function animateResult(oldD, newD) {
+  const om = oldD && oldD.match, nm = newD.match;
+  if (!om || !nm || om.id !== nm.id || !nm.results.length) return;
+  const nr = nm.results[0], or = om.results[0];
+  if (or && or.id === nr.id) return;
+  if (!nr.winner) return;
+  const from = document.querySelector("#block .t.s170");
+  const to = document.querySelector(`[data-bot="${nr.winner}"] .rack`);
+  if (!from || !to) return;
+  const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
+  const k = Math.min(innerWidth / 1920, innerHeight / 1080);
+  const f = document.createElement("span");
+  f.className = "t s170 fly" + (nr.won ? " gold" : "");
+  f.innerHTML = `${esc(nr.letter)}<sub>${V[nr.letter] || ""}</sub>`;
+  f.style.left = a.left + "px"; f.style.top = a.top + "px";
+  f.style.transformOrigin = "top left"; f.style.transform = `scale(${k})`;
+  document.body.appendChild(f);
+  requestAnimationFrame(() => {
+    const dx = b.left + b.width / 2 - (a.left + (a.width / 2)), dy = b.top + b.height / 2 - (a.top + a.height / 2);
+    f.style.transform = `translate(${dx + a.width * 0.4}px, ${dy + a.height * 0.4}px) scale(${k * 0.2})`;
+    f.style.opacity = "0.3";
+  });
+  setTimeout(() => f.remove(), 750);
+}
+
+function connect() {
+  const es = new EventSource("/events");
+  es.onmessage = (e) => {
+    $("offline").style.display = "none";
+    const next = JSON.parse(e.data);
+    prev = S;
+    try { animateResult(prev, next); } catch {}
+    S = next;
+    render();
+  };
+  es.onerror = () => { $("offline").style.display = "block"; };
+}
+connect();
+</script>
+</body>
+</html>
