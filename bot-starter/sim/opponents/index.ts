@@ -71,8 +71,10 @@ function nigel(name: string, arg?: string): Agent {
     : arg.startsWith("{")
       ? { ...base, ...JSON.parse(arg) }
       : (readJson<object>(path.resolve(arg)) ?? base);
-  const prices = readJson<PriceTable>(path.join(BOT_DIR, "data", "price_table.json"));
-  const tops = readJson<PriceTable>(path.join(BOT_DIR, "data", "top_table.json"));
+  // A params file may name its own price tables ("priceTable", "topTable").
+  const p = params as { priceTable?: string; topTable?: string };
+  const prices = readJson<PriceTable>(path.join(BOT_DIR, p.priceTable ?? "data/price_table.json"));
+  const tops = readJson<PriceTable>(path.join(BOT_DIR, p.topTable ?? "data/top_table.json"));
   const s = createStrategy(loadDict(), params, prices, tops);
   return { name, decideBid: s.decideBid, chooseWords: s.chooseWords };
 }

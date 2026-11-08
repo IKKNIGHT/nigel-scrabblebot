@@ -46,11 +46,13 @@ function readJson<T>(file: string): T | null {
 
 // Load the dictionary and strategy before connecting.
 const dict = loadDict();
+// A params file may name its own price tables ("priceTable", "topTable").
+const params = readJson<Record<string, unknown>>("params.json") ?? {};
 const strategy = createStrategy(
   dict,
-  readJson("params.json") ?? {},
-  readJson<PriceTable>("data/price_table.json"),
-  readJson<PriceTable>("data/top_table.json"),
+  params,
+  readJson<PriceTable>(String(params.priceTable ?? "data/price_table.json")),
+  readJson<PriceTable>(String(params.topTable ?? "data/top_table.json")),
 );
 console.log(`[${BOT_NAME}] dictionary loaded: ${dict.n} words`);
 
